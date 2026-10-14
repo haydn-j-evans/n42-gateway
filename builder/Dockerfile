@@ -39,7 +39,7 @@ RUN CGO_ENABLED=0 xx-go build\
     -o n42-gateway pkg/main.go\
  && xx-verify n42-gateway
 
-FROM haproxy:3.0.27-alpine
+FROM haproxy:3.0.29-alpine
 
 USER root
 
