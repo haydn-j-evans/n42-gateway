@@ -49,7 +49,7 @@ test: gotestsum
 
 .PHONY: golangci-lint
 golangci-lint:
-	test -x $(LOCAL_GOLANGCI_LINT) || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+	test -x $(LOCAL_GOLANGCI_LINT) || GOBIN=$(LOCALBIN) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 .PHONY: lint
 lint: golangci-lint
