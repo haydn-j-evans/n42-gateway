@@ -3,6 +3,11 @@
 * [Major improvements](#major-improvements)
 * [Upgrade notes - read before upgrade from v0.16!](#upgrade-notes)
 * [Contributors](#contributors)
+* [v0.17.0-beta.1](#v0170-beta1)
+  * [Reference](#reference-b1)
+  * [Release notes](#release-notes-b1)
+  * [Improvements](#improvements-b1)
+  * [Fixes](#fixes-b1)
 * [v0.17.0-alpha.3](#v0170-alpha3)
   * [Reference](#reference-a3)
   * [Release notes](#release-notes-a3)
@@ -45,6 +50,7 @@ A refactor was made on internal HAProxy model to support multiple HTTP(S) fronte
 ## Contributors
 
 * Alexander Stephan ([alexanderstephan](https://github.com/alexanderstephan))
+* Andrej Baran ([andrejbaran](https://github.com/andrejbaran))
 * Arthur Le Roux ([arthlr](https://github.com/arthlr))
 * Ask Bjørn Hansen ([abh](https://github.com/abh))
 * Bagas Purwa S ([bapung](https://github.com/bapung))
@@ -58,8 +64,66 @@ A refactor was made on internal HAProxy model to support multiple HTTP(S) fronte
 * Mia Mouret ([mia-mouret](https://github.com/mia-mouret))
 * Nadia Santalla ([nadiamoe](https://github.com/nadiamoe))
 * Pedro Gonçalves ([PerGon](https://github.com/PerGon))
+* Pranay Mishra ([pranaybm](https://github.com/pranaybm))
 * Silvio Knizek ([killermoehre](https://github.com/killermoehre))
 * Vladimir Kozhukalov ([kozhukalov](https://github.com/kozhukalov))
+
+# v0.17.0-beta.1
+
+## Reference (b1)
+
+* Release date: `2026-10-15`
+* Helm chart: `--version 0.17.0-beta.1 --devel`
+* Image (GHCR): `ghcr.io/n42-gateway/n42-gateway:v0.17.0-beta.1`
+* Image (Quay): `quay.io/n42-gateway/n42-gateway:v0.17.0-beta.1`
+* Embedded HAProxy version: `3.0.29`
+* GitHub release: `https://github.com/n42-gateway/n42-gateway/releases/tag/v0.17.0-beta.1`
+
+## Release notes (b1)
+
+This is the first beta version of the v0.17 branch, which brings the following improvement:
+
+- Lola added image signature and attestation, see how it works and how to verify the signature in the [overview page](https://n42-gateway.github.io/v0.17/docs/overview/#signatures-and-attestations).
+
+Some issues were addressed:
+
+- Updated Go and N42 Gateway dependencies, which fixes known vulnerabilities.
+- Alexander fixed the desired name of an endpoint in the in-memory model, in case of a failed `set server <backend/server> name` command.
+- Pranay reported and fixed the premature shutdown of the session controller uses to drop frontend sessions in the `close-sessions-duration` functionality, leading to the remaining sessions to be dropped only when the old HAProxy instance is stopped; now the controller session is preserved.
+- Dahopem reported that a misconfigured basic auth was incorrectly allowing requests; now a misconfigured endpoint always return 403.
+- HD reported that a backend rule, like rewrite-target, does not apply on alias hostname if the backend handles requests from more than one ingress; now alias are added in the backend rules along with the main hostname.
+- Mickeyrourkeske reported that the redirect from root path applied on a wildcard hostname was being incorrectly applied on overlapping hostnames without that configuration; now the redirect from root is only applied if properly configured in the hostname.
+- Andrej reported and fixed the health-check port of an endpoint, it was not being updated when service-upstream switches to true and the service port is not the same as the targetPort; now the health-check port is correctly updated to the listening port of the endpoint.
+
+Dependencies:
+
+- embedded haproxy from 3.0.27 to 3.0.29
+- client-go from v0.37.0 to v0.37.1
+- go from 1.26.8 to 1.27.2
+
+## Improvements (b1)
+
+New features and improvements since `v0.17.0-alpha.3`:
+
+* Bump sigs.k8s.io/controller-runtime from 0.24.1 to 0.25.1 [#1537](https://github.com/n42-gateway/n42-gateway/pull/1537) (dependabot[bot])
+* Bump k8s.io/client-go from 0.37.0 to 0.37.1 [#1546](https://github.com/n42-gateway/n42-gateway/pull/1546) (dependabot[bot])
+* test: improve dynamic update e2e [#1549](https://github.com/n42-gateway/n42-gateway/pull/1549) (jcmoraisjr)
+* test: fix e2e timeout to reduce flakiness [#1551](https://github.com/n42-gateway/n42-gateway/pull/1551) (jcmoraisjr)
+* Bump sigs.k8s.io/controller-runtime from 0.25.1 to 0.25.2 [#1553](https://github.com/n42-gateway/n42-gateway/pull/1553) (dependabot[bot])
+* ci(image): sign images with cosign keyless signing [#1554](https://github.com/n42-gateway/n42-gateway/pull/1554) (spnngl)
+* bump dependencies [e72d9a4](https://github.com/n42-gateway/n42-gateway/commit/e72d9a43c5d9ef43f11cc9412d493d416cdf44db) (Joao Morais)
+* bump go from 1.26.8 to 1.27.2 [0e542b3](https://github.com/n42-gateway/n42-gateway/commit/0e542b366a37dee5a502ba82be3f650192d1832b) (Joao Morais)
+* bump embedded haproxy from 3.0.27 to 3.0.29 [4298c7c](https://github.com/n42-gateway/n42-gateway/commit/4298c7c7fc0cf3b15868f74c108f6849b485baec) (Joao Morais)
+
+## Fixes (b1)
+
+* fix: stale server name when runtime rename fails [#1543](https://github.com/n42-gateway/n42-gateway/pull/1543) (alexanderstephan)
+* Do not shutdown the controller's own connection when shedding sessions [#1535](https://github.com/n42-gateway/n42-gateway/pull/1535) (pranaybm)
+* fix: deny request on misconfigured basic auth [#1542](https://github.com/n42-gateway/n42-gateway/pull/1542) (jcmoraisjr)
+* fix: add alias part of backend match [#1550](https://github.com/n42-gateway/n42-gateway/pull/1550) (jcmoraisjr)
+* fix: ensure root redirect does not overlap [#1541](https://github.com/n42-gateway/n42-gateway/pull/1541) (jcmoraisjr)
+* fix: dynamic health check port updates [#1547](https://github.com/n42-gateway/n42-gateway/pull/1547) (andrejbaran/jcmoraisjr)
+* fix: split backend ACL when only alias differ [#1556](https://github.com/n42-gateway/n42-gateway/pull/1556) (jcmoraisjr)
 
 # v0.17.0-alpha.3
 

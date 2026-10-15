@@ -83,6 +83,7 @@ ctxwg
 customsections
 CVEs
 daemonset
+Dahopem
 dario
 DCk
 defaultback
@@ -299,6 +300,7 @@ maxqueue
 mergo
 metricsmock
 mhandler
+Mickeyrourkeske
 Misconfig
 missingcrt
 mitchellh
@@ -368,6 +370,7 @@ portnumber
 pport
 pqca
 pqcrl
+Pranay
 promhttp
 promql
 proxyprot
