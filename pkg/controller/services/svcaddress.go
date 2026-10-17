@@ -27,6 +27,7 @@ import (
 	"github.com/go-logr/logr"
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
@@ -248,7 +249,9 @@ func (s *svcAddress) readCurrentLB(ctx context.Context) (lb []networking.Ingress
 		for _, addr := range s.cfg.PublishAddressIPs {
 			lb = append(lb, networking.IngressLoadBalancerIngress{IP: addr})
 		}
-	} else if iplist := s.getNodeIPs(ctx); len(iplist) > 0 {
+	} else if iplist, err := s.getNodeIPs(ctx); err != nil {
+		return nil, err
+	} else if len(iplist) > 0 {
 		// read IPs from the nodes where the controllers are running
 		// if the controller has permission to do so.
 		for _, ip := range iplist {
@@ -274,11 +277,13 @@ func (s *svcAddress) readCurrentLB(ctx context.Context) (lb []networking.Ingress
 // config.UseNodeInternalIP == true, from every controller pod.
 // On dual-stack nodes, all addresses of the matching type are collected,
 // allowing both IPv4 and IPv6 addresses to be reported in the status.
-func (s *svcAddress) getNodeIPs(ctx context.Context) []string {
+// Unscheduled pods and deleted nodes are skipped; other node read
+// failures return error so current status is kept, not wiped.
+func (s *svcAddress) getNodeIPs(ctx context.Context) ([]string, error) {
 	podList, err := s.cache.GetControllerPodList()
 	if err != nil {
 		s.log.Error(err, "failed reading the list of controller's pods")
-		return nil
+		return nil, nil
 	}
 	targetType := api.NodeExternalIP
 	if s.cfg.UseNodeInternalIP {
@@ -287,10 +292,16 @@ func (s *svcAddress) getNodeIPs(ctx context.Context) []string {
 	// read node IPs where the controller replicas are running
 	var iplist []string
 	for _, ctr := range podList {
+		if ctr.Spec.NodeName == "" {
+			continue
+		}
 		node := api.Node{}
 		if err := s.cli.Get(ctx, types.NamespacedName{Name: ctr.Spec.NodeName}, &node); err != nil {
-			s.log.Error(err, "failed reading node info")
-			return nil
+			if apierrors.IsNotFound(err) {
+				s.log.V(1).Info("skipping controller pod, node not found", "pod", ctr.Name, "node", ctr.Spec.NodeName)
+				continue
+			}
+			return nil, fmt.Errorf("failed reading node info: %w", err)
 		}
 		for _, addr := range node.Status.Addresses {
 			if addr.Address == "" || addr.Type != targetType {
@@ -301,5 +312,5 @@ func (s *svcAddress) getNodeIPs(ctx context.Context) []string {
 			}
 		}
 	}
-	return iplist
+	return iplist, nil
 }
