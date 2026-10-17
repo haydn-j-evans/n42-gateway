@@ -259,8 +259,9 @@ func (s *svcAddress) readCurrentLB(ctx context.Context) (lb []networking.Ingress
 		}
 	} else {
 		// fall back to an empty list and log an error if everything else failed
-		s.log.Error(fmt.Errorf("cannot configure address status due to a failure reading the published hostnames/IPs"), ""+
-			"error configuring address status, either fix the configuration or the permission failures, "+
+		s.log.Error(fmt.Errorf("no address found to publish: no scheduled and non-terminating controller pod, "+
+			"or their nodes have no address of the configured type"), ""+
+			"publishing an empty address status, either wait for a controller pod to be scheduled, fix the configuration, "+
 			"configure --publish-service or --publish-address command-line options, "+
 			"or disable status update with --update-status=false")
 	}
