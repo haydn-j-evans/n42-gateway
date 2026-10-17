@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -48,9 +49,15 @@ func TestReadCurrentLBNodeIPs(t *testing.T) {
 			Status:     api.NodeStatus{Addresses: []api.NodeAddress{{Type: api.NodeExternalIP, Address: ip}}},
 		}
 	}
+	terminating := func(p *api.Pod) *api.Pod {
+		p.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		p.Finalizers = []string{"test/keep"}
+		return p
+	}
 	testCases := map[string]struct {
 		objs    []client.Object
 		nodeErr string
+		listErr bool
 		expLB   []networking.IngressLoadBalancerIngress
 		expErr  bool
 	}{
@@ -66,9 +73,18 @@ func TestReadCurrentLBNodeIPs(t *testing.T) {
 			objs:  []client.Object{pod("p1", "n1"), pod("p2", "gone"), node("n1", "10.0.0.1")},
 			expLB: []networking.IngressLoadBalancerIngress{{IP: "10.0.0.1"}},
 		},
+		"skip-terminating-pod": {
+			objs:  []client.Object{pod("p1", "n1"), terminating(pod("p2", "n2")), node("n1", "10.0.0.1"), node("n2", "10.0.0.2")},
+			expLB: []networking.IngressLoadBalancerIngress{{IP: "10.0.0.1"}},
+		},
 		"node-read-failure-keeps-status": {
 			objs:    []client.Object{pod("p1", "n1"), pod("p2", "n2"), node("n1", "10.0.0.1"), node("n2", "10.0.0.2")},
 			nodeErr: "n2",
+			expErr:  true,
+		},
+		"pod-list-failure-keeps-status": {
+			objs:    []client.Object{pod("p1", "n1"), node("n1", "10.0.0.1")},
+			listErr: true,
 			expErr:  true,
 		},
 	}
@@ -81,6 +97,12 @@ func TestReadCurrentLBNodeIPs(t *testing.T) {
 						return fmt.Errorf("connection refused")
 					}
 					return c.Get(ctx, key, obj, opts...)
+				},
+				List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					if test.listErr {
+						return fmt.Errorf("connection refused")
+					}
+					return c.List(ctx, list, opts...)
 				},
 			}).Build()
 			cfg := &config.Config{

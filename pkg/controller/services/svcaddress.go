@@ -277,13 +277,12 @@ func (s *svcAddress) readCurrentLB(ctx context.Context) (lb []networking.Ingress
 // config.UseNodeInternalIP == true, from every controller pod.
 // On dual-stack nodes, all addresses of the matching type are collected,
 // allowing both IPv4 and IPv6 addresses to be reported in the status.
-// Unscheduled pods and deleted nodes are skipped; other node read
+// Unscheduled, terminating pods and deleted nodes are skipped; read
 // failures return error so current status is kept, not wiped.
 func (s *svcAddress) getNodeIPs(ctx context.Context) ([]string, error) {
 	podList, err := s.cache.GetControllerPodList()
 	if err != nil {
-		s.log.Error(err, "failed reading the list of controller's pods")
-		return nil, nil
+		return nil, fmt.Errorf("failed reading the list of controller's pods: %w", err)
 	}
 	targetType := api.NodeExternalIP
 	if s.cfg.UseNodeInternalIP {
@@ -292,7 +291,8 @@ func (s *svcAddress) getNodeIPs(ctx context.Context) ([]string, error) {
 	// read node IPs where the controller replicas are running
 	var iplist []string
 	for _, ctr := range podList {
-		if ctr.Spec.NodeName == "" {
+		// terminating: drop from DNS during preStop, before pod object goes away
+		if ctr.Spec.NodeName == "" || ctr.DeletionTimestamp != nil {
 			continue
 		}
 		node := api.Node{}
